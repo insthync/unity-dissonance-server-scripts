@@ -48,6 +48,23 @@ namespace DissonanceServer
             RegisterClientMessage(OPCODE_SYNC_CLIENTS, OnSyncClientsAtClient);
         }
 
+        public override void OnStopServer()
+        {
+            base.OnStopServer();
+            joinedClients.Clear();
+            clientsByRoomName.Clear();
+        }
+
+        public override void OnStopClient()
+        {
+            base.OnStopClient();
+            foreach (DissonanceClientInstance clientInstance in clientInstances.Values)
+            {
+                Destroy(clientInstance.gameObject);
+            }
+            clientInstances.Clear();
+        }
+
         public override void OnPeerDisconnected(long connectionId, DisconnectInfo disconnectInfo)
         {
             base.OnPeerDisconnected(connectionId, disconnectInfo);
