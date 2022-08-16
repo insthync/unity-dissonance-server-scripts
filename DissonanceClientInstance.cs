@@ -21,8 +21,14 @@ namespace DissonanceServer
         public DissonanceClientInstance Setup(long connectionId)
         {
             player = new LnlMPlayerFunc(FindObjectOfType<DissonanceComms>(), FindObjectOfType<LnlMCommsNetwork>(), transform, connectionId);
+            player.onSetPlayerId = OnSetPlayerId;
             gameObject.SetActive(true);
             return this;
+        }
+
+        public void OnSetPlayerId(string id)
+        {
+            gameObject.name = id;
         }
 
         public DissonanceClientInstance SetPosition(Vector3 position)
