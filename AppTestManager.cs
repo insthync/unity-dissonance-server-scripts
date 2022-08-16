@@ -11,7 +11,7 @@ namespace DissonanceServer
         public Vector3 position;
         public bool join;
         public bool setPosition;
-
+#if UNITY_EDITOR
         private void Update()
         {
             if (join)
@@ -26,5 +26,6 @@ namespace DissonanceServer
                 networkManager.SetPosition(position);
             }
         }
+#endif
     }
 }
