@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using LnlM = LiteNetLibManager.LiteNetLibManager;
 
-namespace Dissonance.Integrations.LiteNetLibManager
+namespace DissonanceServer
 {
     public class DissonanceNetworkManager : LnlM
     {
@@ -35,9 +35,11 @@ namespace Dissonance.Integrations.LiteNetLibManager
         public const ushort OPCODE_JOIN = 1;
         public const ushort OPCODE_SET_POSITION = 2;
         public const ushort OPCODE_SYNC_CLIENTS = 3;
-        private readonly ConcurrentDictionary<long, ClientData> syncedClients = new ConcurrentDictionary<long, ClientData>();
+        private readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
         private readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
         private readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
+
+        public DissonanceClientInstance clientInstancePrefab;
 
         protected override void RegisterMessages()
         {
@@ -118,26 +120,32 @@ namespace Dissonance.Integrations.LiteNetLibManager
         private void OnSyncClientsAtClient(MessageHandlerData netMsg)
         {
             ClientData[] clients = netMsg.Reader.GetArray<ClientData>();
-            HashSet<long> removingClients = new HashSet<long>(syncedClients.Keys);
+            HashSet<long> removingClients = new HashSet<long>(clientInstances.Keys);
             ClientData syncingClient;
+            // Add/Update client instances by synced client data
             for (int i = 0; i < clients.Length; ++i)
             {
                 syncingClient = clients[i];
-                // TODO: Do something
-                if (!syncedClients.ContainsKey(syncingClient.connectionId))
+                if (!clientInstances.ContainsKey(syncingClient.connectionId))
                 {
-                    // TODO: Instantiate new instance for voice chat triggering
+                    // Instantiate new instance for voice chat triggering
+                    clientInstances[syncingClient.connectionId] = Instantiate(clientInstancePrefab, syncingClient.position, Quaternion.identity).Setup(syncingClient.connectionId);
                 }
-                // Update client data
-                syncedClients[syncingClient.connectionId] = syncingClient;
+                else
+                {
+                    // Update client data
+                    clientInstances[syncingClient.connectionId] = clientInstances[syncingClient.connectionId].SetPosition(syncingClient.position);
+                }
                 // Remove added/updated client data from removing collection
                 removingClients.Remove(syncingClient.connectionId);
             }
+            // Remove client instances by entries in removing collection
             foreach (long connectionId in removingClients)
             {
-                if (syncedClients.TryRemove(connectionId, out _))
+                if (clientInstances.TryRemove(connectionId, out DissonanceClientInstance clientInstance))
                 {
-                    // TODO: Destroy instance
+                    // Destroy instance
+                    Destroy(clientInstance.gameObject);
                 }
             }
         }
