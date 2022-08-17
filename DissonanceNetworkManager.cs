@@ -16,12 +16,14 @@ namespace DissonanceServer
             public long connectionId;
             public string roomName;
             public Vector3 position;
+            public Quaternion rotation;
 
             public void Deserialize(NetDataReader reader)
             {
                 connectionId = reader.GetPackedLong();
                 roomName = reader.GetString();
                 position = reader.GetVector3();
+                rotation = reader.GetQuaternion();
             }
 
             public void Serialize(NetDataWriter writer)
@@ -29,11 +31,12 @@ namespace DissonanceServer
                 writer.PutPackedLong(connectionId);
                 writer.Put(roomName);
                 writer.PutVector3(position);
+                writer.PutQuaternion(rotation);
             }
         }
 
         public const ushort OPCODE_JOIN = 1;
-        public const ushort OPCODE_SET_POSITION = 2;
+        public const ushort OPCODE_SET_TRANSFORM = 2;
         public const ushort OPCODE_SYNC_CLIENTS = 3;
         private readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
         private readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
@@ -44,7 +47,7 @@ namespace DissonanceServer
         protected override void RegisterMessages()
         {
             RegisterServerMessage(OPCODE_JOIN, OnJoinAtServer);
-            RegisterServerMessage(OPCODE_SET_POSITION, OnSetPositionAtServer);
+            RegisterServerMessage(OPCODE_SET_TRANSFORM, OnSetTransformAtServer);
             RegisterClientMessage(OPCODE_SYNC_CLIENTS, OnSyncClientsAtClient);
         }
 
@@ -108,11 +111,13 @@ namespace DissonanceServer
                 RemoveClient(netMsg.ConnectionId);
                 string roomName = netMsg.Reader.GetString();
                 Vector3 position = netMsg.Reader.GetVector3();
+                Quaternion rotation = netMsg.Reader.GetQuaternion();
                 joinedClients[netMsg.ConnectionId] = new ClientData()
                 {
                     connectionId = netMsg.ConnectionId,
                     roomName = roomName,
                     position = position,
+                    rotation = rotation,
                 };
                 if (!clientsByRoomName.ContainsKey(roomName))
                     clientsByRoomName.TryAdd(roomName, new HashSet<long>());
@@ -125,11 +130,12 @@ namespace DissonanceServer
             }
         }
 
-        private void OnSetPositionAtServer(MessageHandlerData netMsg)
+        private void OnSetTransformAtServer(MessageHandlerData netMsg)
         {
             if (joinedClients.TryGetValue(netMsg.ConnectionId, out ClientData client))
             {
                 client.position = netMsg.Reader.GetVector3();
+                client.rotation = netMsg.Reader.GetQuaternion();
                 joinedClients[netMsg.ConnectionId] = client;
             }
         }
@@ -146,12 +152,12 @@ namespace DissonanceServer
                 if (!clientInstances.ContainsKey(syncingClient.connectionId))
                 {
                     // Instantiate new instance for voice chat triggering
-                    clientInstances[syncingClient.connectionId] = Instantiate(clientInstancePrefab, syncingClient.position, Quaternion.identity).Setup(syncingClient.connectionId);
+                    clientInstances[syncingClient.connectionId] = Instantiate(clientInstancePrefab, syncingClient.position, syncingClient.rotation).Setup(syncingClient.connectionId);
                 }
                 else
                 {
                     // Update client data
-                    clientInstances[syncingClient.connectionId] = clientInstances[syncingClient.connectionId].SetPosition(syncingClient.position);
+                    clientInstances[syncingClient.connectionId] = clientInstances[syncingClient.connectionId].SetTransform(syncingClient.position, syncingClient.rotation);
                 }
                 // Remove added/updated client data from removing collection
                 removingClients.Remove(syncingClient.connectionId);
@@ -172,23 +178,25 @@ namespace DissonanceServer
         /// </summary>
         /// <param name="roomName"></param>
         /// <param name="position"></param>
-        public void Join(string roomName, Vector3 position)
+        public void Join(string roomName, Vector3 position, Quaternion rotation)
         {
             ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_JOIN, (writer) =>
             {
                 writer.Put(roomName);
                 writer.PutVector3(position);
+                writer.PutQuaternion(rotation);
             });
         }
 
         /// <summary>
-        /// Set client's position
+        /// Set client's position and rotation
         /// </summary>
-        public void SetPosition(Vector3 position)
+        public void SetTransform(Vector3 position, Quaternion rotation)
         {
-            ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_SET_POSITION, (writer) =>
+            ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_SET_TRANSFORM, (writer) =>
             {
                 writer.PutVector3(position);
+                writer.PutQuaternion(rotation);
             });
         }
     }

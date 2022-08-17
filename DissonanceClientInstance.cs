@@ -4,24 +4,57 @@ using UnityEngine;
 
 namespace DissonanceServer
 {
-    public class DissonanceClientInstance : MonoBehaviour, IDissonancePlayer
+    public class DissonanceClientInstance : MonoBehaviour, IDissonancePlayer, ILnlMPlayer
     {
-        private LnlMPlayerFunc player;
+        private LnlMPlayerFunc playerFunc;
 
-        public string PlayerId => player.PlayerId;
+        public long ConnectionId { get; private set; }
 
-        public Vector3 Position => player.Position;
+        public string PlayerId
+        {
+            get
+            {
+                if (playerFunc == null)
+                    return string.Empty;
+                return playerFunc.PlayerId;
+            }
+        }
 
-        public Quaternion Rotation => player.Rotation;
+        public Vector3 Position
+        {
+            get { return transform.position; }
+        }
 
-        public NetworkPlayerType Type => player.Type;
+        public Quaternion Rotation
+        {
+            get { return transform.rotation; }
+        }
 
-        public bool IsTracking => player.IsTracking;
+        public NetworkPlayerType Type
+        {
+            get
+            {
+                if (playerFunc == null)
+                    return NetworkPlayerType.Unknown;
+                return playerFunc.Type;
+            }
+        }
+
+        public bool IsTracking
+        {
+            get
+            {
+                if (playerFunc == null)
+                    return false;
+                return playerFunc.IsTracking;
+            }
+        }
 
         public DissonanceClientInstance Setup(long connectionId)
         {
-            player = new LnlMPlayerFunc(FindObjectOfType<DissonanceComms>(), FindObjectOfType<LnlMCommsNetwork>(), transform, connectionId);
-            player.onSetPlayerId = OnSetPlayerId;
+            ConnectionId = connectionId;
+            playerFunc = new LnlMPlayerFunc(FindObjectOfType<DissonanceComms>(), FindObjectOfType<LnlMCommsNetwork>(), this);
+            playerFunc.onSetPlayerId = OnSetPlayerId;
             gameObject.SetActive(true);
             return this;
         }
@@ -31,28 +64,34 @@ namespace DissonanceServer
             gameObject.name = id;
         }
 
-        public DissonanceClientInstance SetPosition(Vector3 position)
+        public DissonanceClientInstance SetTransform(Vector3 position, Quaternion rotation)
         {
             transform.position = position;
+            transform.rotation = rotation;
             return this;
+        }
+
+        private void Awake()
+        {
+            DontDestroyOnLoad(gameObject);
         }
 
         private void OnEnable()
         {
-            if (player != null)
-                player.OnEnable();
+            if (playerFunc != null)
+                playerFunc.OnEnable();
         }
 
         private void OnDisable()
         {
-            if (player != null)
-                player.OnDisable();
+            if (playerFunc != null)
+                playerFunc.OnDisable();
         }
 
         private void OnDestroy()
         {
-            if (player != null)
-                player.OnDestroy();
+            if (playerFunc != null)
+                playerFunc.OnDestroy();
         }
     }
 }

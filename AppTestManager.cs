@@ -9,6 +9,7 @@ namespace DissonanceServer
         public DissonanceNetworkManager networkManager;
         public string roomName;
         public Vector3 position;
+        public Vector3 rotation;
         public bool join;
         public bool setPosition;
 #if UNITY_EDITOR
@@ -17,13 +18,13 @@ namespace DissonanceServer
             if (join)
             {
                 join = false;
-                networkManager.Join(roomName, position);
+                networkManager.Join(roomName, position, Quaternion.Euler(rotation));
             }
 
             if (setPosition)
             {
                 setPosition = false;
-                networkManager.SetPosition(position);
+                networkManager.SetTransform(position, Quaternion.Euler(rotation));
             }
         }
 #endif
