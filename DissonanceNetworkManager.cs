@@ -38,9 +38,9 @@ namespace DissonanceServer
         public const ushort OPCODE_JOIN = 1;
         public const ushort OPCODE_SET_TRANSFORM = 2;
         public const ushort OPCODE_SYNC_CLIENTS = 3;
-        private readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
-        private readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
-        private readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
+        public readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
+        public readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
+        public readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
         public static DissonanceNetworkManager Instance { get; private set; }
 
         public bool startServerOnStart;
