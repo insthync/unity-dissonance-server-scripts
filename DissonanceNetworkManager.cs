@@ -42,7 +42,19 @@ namespace DissonanceServer
         private readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
         private readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
 
+        public bool startServerOnStart;
         public DissonanceClientInstance clientInstancePrefab;
+
+        protected override void Start()
+        {
+            base.Start();
+#if UNITY_SERVER
+            StartServer();
+#else
+            if (startServerOnStart)
+                StartServer();
+#endif
+        }
 
         protected override void RegisterMessages()
         {
