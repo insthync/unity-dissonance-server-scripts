@@ -178,6 +178,7 @@ namespace DissonanceServer
         /// </summary>
         /// <param name="roomName"></param>
         /// <param name="position"></param>
+        /// <param name="rotation"></param>
         public void Join(string roomName, Vector3 position, Quaternion rotation)
         {
             ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_JOIN, (writer) =>
@@ -191,6 +192,8 @@ namespace DissonanceServer
         /// <summary>
         /// Set client's position and rotation
         /// </summary>
+        /// <param name="position"></param>
+        /// <param name="rotation"></param>
         public void SetTransform(Vector3 position, Quaternion rotation)
         {
             ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_SET_TRANSFORM, (writer) =>
