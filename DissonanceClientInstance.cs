@@ -10,6 +10,16 @@ namespace DissonanceServer
 
         public long ConnectionId { get; private set; }
 
+        public bool IsOwnerClient
+        {
+            get
+            {
+                if (playerFunc == null)
+                    return false;
+                return playerFunc.IsOwnerClient;
+            }
+        }
+
         public string PlayerId
         {
             get
