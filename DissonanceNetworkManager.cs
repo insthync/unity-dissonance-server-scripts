@@ -41,9 +41,21 @@ namespace DissonanceServer
         private readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
         private readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
         private readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
+        public static DissonanceNetworkManager Instance { get; private set; }
 
         public bool startServerOnStart;
         public DissonanceClientInstance clientInstancePrefab;
+
+        private void Awake()
+        {
+            if (Instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+            DontDestroyOnLoad(this);
+        }
 
         protected override void Start()
         {
