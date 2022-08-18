@@ -1,6 +1,7 @@
 using LiteNetLib;
 using LiteNetLib.Utils;
 using LiteNetLibManager;
+using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
@@ -60,6 +61,28 @@ namespace DissonanceServer
         protected override void Start()
         {
             base.Start();
+            ReadConfigAndStart();
+        }
+
+        public async void ReadConfigAndStart()
+        {
+            var json = await Utils.LoadTextFromStreamingAssets("dissonanceServerConfig.json");
+            if (!string.IsNullOrEmpty(json))
+            {
+                try
+                {
+                    var data = JsonConvert.DeserializeObject<Config>(json);
+                    if (data.networkPort.HasValue)
+                        networkPort = data.networkPort.Value;
+                    if (data.maxConnections.HasValue)
+                        maxConnections = data.maxConnections.Value;
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError("[DissonanceNetworkManager] Unable to read config.");
+                    Debug.LogException(ex);
+                }
+            }
 #if UNITY_SERVER
             StartServer();
 #else
