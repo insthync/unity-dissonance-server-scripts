@@ -6,6 +6,7 @@ namespace DissonanceServer
 {
     public class DissonanceClientInstance : MonoBehaviour, IDissonancePlayer, ILnlMPlayer
     {
+        public static bool IsJoined { get; private set; }
         private LnlMPlayerFunc playerFunc;
 
         public long ConnectionId { get; private set; }
@@ -69,8 +70,10 @@ namespace DissonanceServer
             return this;
         }
 
-        public void OnSetPlayerId(string id)
+        public void OnSetPlayerId(bool isOwnerClient, string id)
         {
+            if (isOwnerClient)
+                IsJoined = true;
             gameObject.name = id;
         }
 
@@ -100,6 +103,8 @@ namespace DissonanceServer
 
         private void OnDestroy()
         {
+            if (IsOwnerClient)
+                IsJoined = false;
             if (playerFunc != null)
                 playerFunc.OnDestroy();
         }
