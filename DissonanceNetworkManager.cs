@@ -73,9 +73,15 @@ namespace DissonanceServer
                 {
                     var data = JsonConvert.DeserializeObject<Config>(json);
                     if (data.networkPort.HasValue)
+                    {
                         networkPort = data.networkPort.Value;
+                        Logging.Log("Network Port set to " + networkPort);
+                    }
                     if (data.maxConnections.HasValue)
+                    {
                         maxConnections = data.maxConnections.Value;
+                        Logging.Log("Max Connections set to " + maxConnections);
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -98,8 +104,15 @@ namespace DissonanceServer
             RegisterClientMessage(OPCODE_SYNC_CLIENTS, OnSyncClientsAtClient);
         }
 
+        public override void OnStartServer()
+        {
+            Logging.Log("Dissonance Server Started");
+            base.OnStartServer();
+        }
+
         public override void OnStopServer()
         {
+            Logging.Log("Dissonance Server Stopped");
             base.OnStopServer();
             joinedClients.Clear();
             clientsByRoomName.Clear();
