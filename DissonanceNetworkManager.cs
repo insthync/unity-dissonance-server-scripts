@@ -89,12 +89,14 @@ namespace DissonanceServer
                     Debug.LogException(ex);
                 }
             }
-#if UNITY_SERVER
-            StartServer();
-#else
             if (startServerOnStart)
-                StartServer();
+            {
+#if UNITY_SERVER
+                Application.runInBackground = true;
+                Application.targetFrameRate = 10;
 #endif
+                StartServer();
+            }
         }
 
         protected override void RegisterMessages()
