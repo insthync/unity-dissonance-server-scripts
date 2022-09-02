@@ -4,6 +4,7 @@ using LiteNetLibManager;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using LnlM = LiteNetLibManager.LiteNetLibManager;
 
@@ -58,13 +59,14 @@ namespace DissonanceServer
             DontDestroyOnLoad(this);
         }
 
-        protected override void Start()
+        protected override async void Start()
         {
             base.Start();
-            ReadConfigAndStart();
+            if (startServerOnStart)
+                await StartServerWithConfig();
         }
 
-        public async void ReadConfigAndStart()
+        public async Task<bool> StartServerWithConfig()
         {
             var json = await Utils.LoadTextFromStreamingAssets("dissonanceServerConfig.json");
             if (!string.IsNullOrEmpty(json))
@@ -89,14 +91,11 @@ namespace DissonanceServer
                     Debug.LogException(ex);
                 }
             }
-            if (startServerOnStart)
-            {
 #if UNITY_SERVER
-                Application.runInBackground = true;
-                Application.targetFrameRate = 10;
+            Application.runInBackground = true;
+            Application.targetFrameRate = 10;
 #endif
-                StartServer();
-            }
+            return StartServer();
         }
 
         protected override void RegisterMessages()
