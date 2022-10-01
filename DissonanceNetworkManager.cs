@@ -255,28 +255,14 @@ namespace DissonanceServer
         /// <summary>
         /// Set client's position and rotation
         /// </summary>
-        /// <param name="roomName"></param>
         /// <param name="position"></param>
         /// <param name="rotation"></param>
-        public void SetTransform(string roomName, Vector3 position, Quaternion rotation)
+        public void SetTransform(Vector3 position, Quaternion rotation)
         {
-            ClientSendPacket(0, DeliveryMethod.Unreliable, OPCODE_SET_TRANSFORM, (writer) =>
+            ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_SET_TRANSFORM, (writer) =>
             {
-                writer.Put(roomName);
                 writer.PutVector3(position);
                 writer.PutQuaternion(rotation);
-            });
-        }
-
-        /// <summary>
-        /// Leave from joined room
-        /// </summary>
-        /// <param name="roomName"></param>
-        public void Leave(string roomName)
-        {
-            ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_LEAVE, (writer) =>
-            {
-                writer.Put(roomName);
             });
         }
     }

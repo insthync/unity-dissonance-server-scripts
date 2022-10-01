@@ -24,7 +24,7 @@ namespace DissonanceServer
             if (setPosition)
             {
                 setPosition = false;
-                networkManager.SetTransform(roomName, position, Quaternion.Euler(rotation));
+                networkManager.SetTransform(position, Quaternion.Euler(rotation));
             }
         }
 #endif
