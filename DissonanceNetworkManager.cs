@@ -12,31 +12,6 @@ namespace DissonanceServer
 {
     public class DissonanceNetworkManager : LnlM
     {
-        [System.Serializable]
-        public struct ClientData : INetSerializable
-        {
-            public long connectionId;
-            public string roomName;
-            public Vector3 position;
-            public Quaternion rotation;
-
-            public void Deserialize(NetDataReader reader)
-            {
-                connectionId = reader.GetPackedLong();
-                roomName = reader.GetString();
-                position = reader.GetVector3();
-                rotation = reader.GetQuaternion();
-            }
-
-            public void Serialize(NetDataWriter writer)
-            {
-                writer.PutPackedLong(connectionId);
-                writer.Put(roomName);
-                writer.PutVector3(position);
-                writer.PutQuaternion(rotation);
-            }
-        }
-
         public const ushort OPCODE_JOIN = 1;
         public const ushort OPCODE_SET_TRANSFORM = 2;
         public const ushort OPCODE_SYNC_CLIENTS = 3;
@@ -240,7 +215,7 @@ namespace DissonanceServer
                 if (!clientInstances.ContainsKey(tempClientInstanceId))
                 {
                     // Instantiate new instance for voice chat triggering
-                    clientInstances[tempClientInstanceId] = Instantiate(clientInstancePrefab, tempClient.position, tempClient.rotation).Setup(tempClient.connectionId);
+                    clientInstances[tempClientInstanceId] = Instantiate(clientInstancePrefab, tempClient.position, tempClient.rotation).Setup(tempClient);
                 }
                 else
                 {
