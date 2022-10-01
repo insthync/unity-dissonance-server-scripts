@@ -19,6 +19,7 @@ namespace DissonanceServer
             public string roomName;
             public Vector3 position;
             public Quaternion rotation;
+            public string payload;
 
             public void Deserialize(NetDataReader reader)
             {
@@ -26,6 +27,7 @@ namespace DissonanceServer
                 roomName = reader.GetString();
                 position = reader.GetVector3();
                 rotation = reader.GetQuaternion();
+                payload = reader.GetString();
             }
 
             public void Serialize(NetDataWriter writer)
@@ -34,12 +36,14 @@ namespace DissonanceServer
                 writer.Put(roomName);
                 writer.PutVector3(position);
                 writer.PutQuaternion(rotation);
+                writer.Put(payload);
             }
         }
 
         public const ushort OPCODE_JOIN = 1;
         public const ushort OPCODE_SET_TRANSFORM = 2;
-        public const ushort OPCODE_SYNC_CLIENTS = 3;
+        public const ushort OPCODE_SET_PAYLOAD = 3;
+        public const ushort OPCODE_SYNC_CLIENTS = 4;
         // Client Vars
         public readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
         // Server Vars
@@ -108,6 +112,7 @@ namespace DissonanceServer
         {
             RegisterServerMessage(OPCODE_JOIN, OnJoinAtServer);
             RegisterServerMessage(OPCODE_SET_TRANSFORM, OnSetTransformAtServer);
+            RegisterServerMessage(OPCODE_SET_PAYLOAD, OnSetPayloadAtServer);
             RegisterClientMessage(OPCODE_SYNC_CLIENTS, OnSyncClientsAtClient);
         }
 
@@ -179,12 +184,14 @@ namespace DissonanceServer
                 string roomName = netMsg.Reader.GetString();
                 Vector3 position = netMsg.Reader.GetVector3();
                 Quaternion rotation = netMsg.Reader.GetQuaternion();
+                string payload = netMsg.Reader.GetString();
                 joinedClients[netMsg.ConnectionId] = new ClientData()
                 {
                     connectionId = netMsg.ConnectionId,
                     roomName = roomName,
                     position = position,
                     rotation = rotation,
+                    payload = payload,
                 };
                 if (!clientsByRoomName.ContainsKey(roomName))
                     clientsByRoomName.TryAdd(roomName, new HashSet<long>());
@@ -203,6 +210,15 @@ namespace DissonanceServer
             {
                 client.position = netMsg.Reader.GetVector3();
                 client.rotation = netMsg.Reader.GetQuaternion();
+                joinedClients[netMsg.ConnectionId] = client;
+            }
+        }
+
+        private void OnSetPayloadAtServer(MessageHandlerData netMsg)
+        {
+            if (joinedClients.TryGetValue(netMsg.ConnectionId, out ClientData client))
+            {
+                client.payload = netMsg.Reader.GetString();
                 joinedClients[netMsg.ConnectionId] = client;
             }
         }
@@ -246,13 +262,15 @@ namespace DissonanceServer
         /// <param name="roomName"></param>
         /// <param name="position"></param>
         /// <param name="rotation"></param>
-        public void Join(string roomName, Vector3 position, Quaternion rotation)
+        /// <param name="payload"></param>
+        public void Join(string roomName, Vector3 position, Quaternion rotation, string payload)
         {
             ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_JOIN, (writer) =>
             {
                 writer.Put(roomName);
                 writer.PutVector3(position);
                 writer.PutQuaternion(rotation);
+                writer.Put(payload);
             });
         }
 
@@ -263,10 +281,22 @@ namespace DissonanceServer
         /// <param name="rotation"></param>
         public void SetTransform(Vector3 position, Quaternion rotation)
         {
-            ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_SET_TRANSFORM, (writer) =>
+            ClientSendPacket(0, DeliveryMethod.Unreliable, OPCODE_SET_TRANSFORM, (writer) =>
             {
                 writer.PutVector3(position);
                 writer.PutQuaternion(rotation);
+            });
+        }
+
+        /// <summary>
+        /// Set client's payload
+        /// </summary>
+        /// <param name="payload"></param>
+        public void SetPayload(string payload)
+        {
+            ClientSendPacket(0, DeliveryMethod.ReliableOrdered, OPCODE_SET_PAYLOAD, (writer) =>
+            {
+                writer.Put(payload);
             });
         }
     }
