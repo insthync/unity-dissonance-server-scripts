@@ -9,7 +9,9 @@ namespace DissonanceServer
         public static bool IsJoined { get; private set; }
         private LnlMPlayerFunc playerFunc;
 
-        public long ConnectionId { get; private set; }
+        public ClientData ClientData { get; private set; }
+        
+        public long ConnectionId { get => ClientData.connectionId; }
 
         public bool IsOwnerClient
         {
@@ -61,9 +63,9 @@ namespace DissonanceServer
             }
         }
 
-        public DissonanceClientInstance Setup(long connectionId)
+        public DissonanceClientInstance Setup(ClientData clientData)
         {
-            ConnectionId = connectionId;
+            ClientData = clientData;
             playerFunc = new LnlMPlayerFunc(FindObjectOfType<DissonanceComms>(), FindObjectOfType<LnlMCommsNetwork>(), this);
             playerFunc.onSetPlayerId = OnSetPlayerId;
             gameObject.SetActive(true);
