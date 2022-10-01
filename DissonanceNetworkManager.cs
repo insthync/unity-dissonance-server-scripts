@@ -40,16 +40,22 @@ namespace DissonanceServer
         public const ushort OPCODE_JOIN = 1;
         public const ushort OPCODE_SET_TRANSFORM = 2;
         public const ushort OPCODE_SYNC_CLIENTS = 3;
+        // Client Vars
         public readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
+        // Server Vars
         public readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
         public readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
+        // Properties
         public static DissonanceNetworkManager Instance { get; private set; }
-
+        // Settings
+        public bool nonSingleton;
         public bool startServerOnStart;
         public DissonanceClientInstance clientInstancePrefab;
 
         private void Awake()
         {
+            if (nonSingleton)
+                return;
             if (Instance != null)
             {
                 Destroy(gameObject);
