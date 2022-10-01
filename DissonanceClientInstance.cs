@@ -1,16 +1,15 @@
 using Dissonance;
 using Dissonance.Integrations.LiteNetLibManager;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace DissonanceServer
 {
     public class DissonanceClientInstance : MonoBehaviour, IDissonancePlayer, ILnlMPlayer
     {
-        public static HashSet<string> JoinedRoomNames { get; private set; } = new HashSet<string>();
+        public static bool IsJoined { get; private set; }
+        private LnlMPlayerFunc playerFunc;
 
-        public ClientData ClientData { get; private set; }
-        public long ConnectionId { get { return ClientData.connectionId; } }
+        public long ConnectionId { get; private set; }
 
         public bool IsOwnerClient
         {
@@ -62,11 +61,9 @@ namespace DissonanceServer
             }
         }
 
-        private LnlMPlayerFunc playerFunc;
-
-        public DissonanceClientInstance Setup(ClientData clientData)
+        public DissonanceClientInstance Setup(long connectionId)
         {
-            ClientData = clientData;
+            ConnectionId = connectionId;
             playerFunc = new LnlMPlayerFunc(FindObjectOfType<DissonanceComms>(), FindObjectOfType<LnlMCommsNetwork>(), this);
             playerFunc.onSetPlayerId = OnSetPlayerId;
             gameObject.SetActive(true);
@@ -76,7 +73,7 @@ namespace DissonanceServer
         public void OnSetPlayerId(bool isOwnerClient, string id)
         {
             if (isOwnerClient)
-                JoinedRoomNames.Add(ClientData.roomName);
+                IsJoined = true;
             gameObject.name = id;
         }
 
@@ -107,7 +104,7 @@ namespace DissonanceServer
         private void OnDestroy()
         {
             if (IsOwnerClient)
-                JoinedRoomNames.Remove(ClientData.roomName);
+                IsJoined = false;
             if (playerFunc != null)
                 playerFunc.OnDestroy();
         }
