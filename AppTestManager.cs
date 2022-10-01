@@ -12,7 +12,6 @@ namespace DissonanceServer
         public Vector3 rotation;
         public bool join;
         public bool setPosition;
-        public bool leave;
 #if UNITY_EDITOR
         private void Update()
         {
@@ -26,11 +25,6 @@ namespace DissonanceServer
             {
                 setPosition = false;
                 networkManager.SetTransform(roomName, position, Quaternion.Euler(rotation));
-            }
-            if (leave)
-            {
-                leave = false;
-                networkManager.Leave(roomName);
             }
         }
 #endif
