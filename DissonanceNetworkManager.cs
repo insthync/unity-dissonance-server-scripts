@@ -21,11 +21,16 @@ namespace DissonanceServer
         public readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
         public static DissonanceNetworkManager Instance { get; private set; }
 
-        public bool startServerOnStart;
+        public bool nonSingleton = false;
+        public bool startServerOnStart = false;
         public DissonanceClientInstance clientInstancePrefab;
+
+        private bool hasSomethingToSync;
 
         private void Awake()
         {
+            if (nonSingleton)
+                return;
             if (Instance != null)
             {
                 Destroy(gameObject);
@@ -109,12 +114,16 @@ namespace DissonanceServer
         public override void OnPeerDisconnected(long connectionId, DisconnectInfo disconnectInfo)
         {
             base.OnPeerDisconnected(connectionId, disconnectInfo);
-            RemoveClient(connectionId);
+            RemoveClientFromAllRooms(connectionId);
+            hasSomethingToSync = true;
         }
 
         protected override void FixedUpdate()
         {
             base.FixedUpdate();
+            if (!hasSomethingToSync)
+                return;
+            hasSomethingToSync = false;
             // Sync clients position
             foreach (string roomName in clientsByRoomName.Keys)
             {
@@ -136,24 +145,33 @@ namespace DissonanceServer
             }
         }
 
-        private void RemoveClient(long connectionId)
+        private void RemoveClientFromAllRooms(long connectionId)
         {
             if (!joinedClients.TryRemove(connectionId, out Dictionary<string, ClientData> joinedRooms))
                 return;
             foreach (string roomName in joinedRooms.Keys)
             {
-                clientsByRoomName[roomName].Remove(connectionId);
+                if (clientsByRoomName.ContainsKey(roomName))
+                    clientsByRoomName[roomName].Remove(connectionId);
             }
+        }
+
+        private void RemoveClient(long connectionId, string roomName)
+        {
+            if (joinedClients.ContainsKey(connectionId) && joinedClients[connectionId].ContainsKey(roomName))
+                joinedClients[connectionId].Remove(roomName);
+            if (clientsByRoomName.ContainsKey(roomName))
+                clientsByRoomName[roomName].Remove(connectionId);
         }
 
         private void OnJoinAtServer(MessageHandlerData netMsg)
         {
+            string roomName = netMsg.Reader.GetString();
+            Vector3 position = netMsg.Reader.GetVector3();
+            Quaternion rotation = netMsg.Reader.GetQuaternion();
             try
             {
-                RemoveClient(netMsg.ConnectionId);
-                string roomName = netMsg.Reader.GetString();
-                Vector3 position = netMsg.Reader.GetVector3();
-                Quaternion rotation = netMsg.Reader.GetQuaternion();
+                RemoveClient(netMsg.ConnectionId, roomName);
                 if (!clientsByRoomName.ContainsKey(roomName))
                     clientsByRoomName.TryAdd(roomName, new HashSet<long>());
                 clientsByRoomName[roomName].Add(netMsg.ConnectionId);
@@ -166,11 +184,12 @@ namespace DissonanceServer
                     position = position,
                     rotation = rotation,
                 };
+                hasSomethingToSync = true;
             }
             catch (System.Exception ex)
             {
                 Logging.LogException(ex);
-                RemoveClient(netMsg.ConnectionId);
+                RemoveClient(netMsg.ConnectionId, roomName);
             }
         }
 
@@ -184,16 +203,14 @@ namespace DissonanceServer
             client.position = netMsg.Reader.GetVector3();
             client.rotation = netMsg.Reader.GetQuaternion();
             joinedClients[netMsg.ConnectionId][roomName] = client;
+            hasSomethingToSync = true;
         }
 
         private void OnLeaveAtServer(MessageHandlerData netMsg)
         {
-            if (!joinedClients.ContainsKey(netMsg.ConnectionId))
-                return;
             string roomName = netMsg.Reader.GetString();
-            if (!joinedClients[netMsg.ConnectionId].ContainsKey(roomName))
-                return;
-            joinedClients[netMsg.ConnectionId].Remove(roomName);
+            RemoveClient(netMsg.ConnectionId, roomName);
+            hasSomethingToSync = true;
         }
 
         public string GetClientInstanceId(long connectionId, string roomName)
