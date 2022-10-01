@@ -40,8 +40,9 @@ namespace DissonanceServer
         public const ushort OPCODE_JOIN = 1;
         public const ushort OPCODE_SET_TRANSFORM = 2;
         public const ushort OPCODE_SYNC_CLIENTS = 3;
-        public readonly ConcurrentDictionary<long, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<long, DissonanceClientInstance>();
-        public readonly ConcurrentDictionary<long, ClientData> joinedClients = new ConcurrentDictionary<long, ClientData>();
+        public const ushort OPCODE_LEAVE = 4;
+        public readonly ConcurrentDictionary<string, DissonanceClientInstance> clientInstances = new ConcurrentDictionary<string, DissonanceClientInstance>();
+        public readonly ConcurrentDictionary<long, Dictionary<string, ClientData>> joinedClients = new ConcurrentDictionary<long, Dictionary<string, ClientData>>();
         public readonly ConcurrentDictionary<string, HashSet<long>> clientsByRoomName = new ConcurrentDictionary<string, HashSet<long>>();
         public static DissonanceNetworkManager Instance { get; private set; }
 
@@ -102,6 +103,7 @@ namespace DissonanceServer
         {
             RegisterServerMessage(OPCODE_JOIN, OnJoinAtServer);
             RegisterServerMessage(OPCODE_SET_TRANSFORM, OnSetTransformAtServer);
+            RegisterServerMessage(OPCODE_LEAVE, OnLeaveAtServer);
             RegisterClientMessage(OPCODE_SYNC_CLIENTS, OnSyncClientsAtClient);
         }
 
@@ -147,7 +149,7 @@ namespace DissonanceServer
                 int index = 0;
                 foreach (long connectionId in sendToConnections)
                 {
-                    filteredClients[index++] = joinedClients[connectionId];
+                    filteredClients[index++] = joinedClients[connectionId][roomName];
                 }
                 NetDataWriter writer = new NetDataWriter();
                 TransportHandler.WritePacket(writer, OPCODE_SYNC_CLIENTS);
@@ -161,8 +163,12 @@ namespace DissonanceServer
 
         private void RemoveClient(long connectionId)
         {
-            if (joinedClients.TryRemove(connectionId, out ClientData client) && clientsByRoomName.ContainsKey(client.roomName))
-                clientsByRoomName[client.roomName].Remove(connectionId);
+            if (!joinedClients.TryRemove(connectionId, out Dictionary<string, ClientData> joinedRooms))
+                return;
+            foreach (string roomName in joinedRooms.Keys)
+            {
+                clientsByRoomName[roomName].Remove(connectionId);
+            }
         }
 
         private void OnJoinAtServer(MessageHandlerData netMsg)
@@ -173,16 +179,18 @@ namespace DissonanceServer
                 string roomName = netMsg.Reader.GetString();
                 Vector3 position = netMsg.Reader.GetVector3();
                 Quaternion rotation = netMsg.Reader.GetQuaternion();
-                joinedClients[netMsg.ConnectionId] = new ClientData()
+                if (!clientsByRoomName.ContainsKey(roomName))
+                    clientsByRoomName.TryAdd(roomName, new HashSet<long>());
+                clientsByRoomName[roomName].Add(netMsg.ConnectionId);
+                if (!joinedClients.ContainsKey(netMsg.ConnectionId))
+                    joinedClients[netMsg.ConnectionId] = new Dictionary<string, ClientData>();
+                joinedClients[netMsg.ConnectionId][roomName] = new ClientData()
                 {
                     connectionId = netMsg.ConnectionId,
                     roomName = roomName,
                     position = position,
                     rotation = rotation,
                 };
-                if (!clientsByRoomName.ContainsKey(roomName))
-                    clientsByRoomName.TryAdd(roomName, new HashSet<long>());
-                clientsByRoomName[roomName].Add(netMsg.ConnectionId);
             }
             catch (System.Exception ex)
             {
@@ -193,40 +201,59 @@ namespace DissonanceServer
 
         private void OnSetTransformAtServer(MessageHandlerData netMsg)
         {
-            if (joinedClients.TryGetValue(netMsg.ConnectionId, out ClientData client))
-            {
-                client.position = netMsg.Reader.GetVector3();
-                client.rotation = netMsg.Reader.GetQuaternion();
-                joinedClients[netMsg.ConnectionId] = client;
-            }
+            if (!joinedClients.ContainsKey(netMsg.ConnectionId))
+                return;
+            string roomName = netMsg.Reader.GetString();
+            if (!joinedClients[netMsg.ConnectionId].TryGetValue(roomName, out ClientData client))
+                return;
+            client.position = netMsg.Reader.GetVector3();
+            client.rotation = netMsg.Reader.GetQuaternion();
+            joinedClients[netMsg.ConnectionId][roomName] = client;
+        }
+
+        private void OnLeaveAtServer(MessageHandlerData netMsg)
+        {
+            if (!joinedClients.ContainsKey(netMsg.ConnectionId))
+                return;
+            string roomName = netMsg.Reader.GetString();
+            if (!joinedClients[netMsg.ConnectionId].ContainsKey(roomName))
+                return;
+            joinedClients[netMsg.ConnectionId].Remove(roomName);
+        }
+
+        public string GetClientInstanceId(long connectionId, string roomName)
+        {
+            return $"{connectionId}:{roomName}";
         }
 
         private void OnSyncClientsAtClient(MessageHandlerData netMsg)
         {
             ClientData[] clients = netMsg.Reader.GetArray<ClientData>();
-            HashSet<long> removingClients = new HashSet<long>(clientInstances.Keys);
-            ClientData syncingClient;
+            HashSet<string> removingClients = new HashSet<string>(clientInstances.Keys);
+            ClientData tempClient;
+            string tempClientInstanceId;
             // Add/Update client instances by synced client data
             for (int i = 0; i < clients.Length; ++i)
             {
-                syncingClient = clients[i];
-                if (!clientInstances.ContainsKey(syncingClient.connectionId))
+                tempClient = clients[i];
+                tempClientInstanceId = GetClientInstanceId(tempClient.connectionId, tempClient.roomName);
+                if (!clientInstances.ContainsKey(tempClientInstanceId))
                 {
                     // Instantiate new instance for voice chat triggering
-                    clientInstances[syncingClient.connectionId] = Instantiate(clientInstancePrefab, syncingClient.position, syncingClient.rotation).Setup(syncingClient.connectionId);
+                    clientInstances[tempClientInstanceId] = Instantiate(clientInstancePrefab, tempClient.position, tempClient.rotation).Setup(tempClient.connectionId);
                 }
                 else
                 {
                     // Update client data
-                    clientInstances[syncingClient.connectionId] = clientInstances[syncingClient.connectionId].SetTransform(syncingClient.position, syncingClient.rotation);
+                    clientInstances[tempClientInstanceId] = clientInstances[tempClientInstanceId].SetTransform(tempClient.position, tempClient.rotation);
                 }
                 // Remove added/updated client data from removing collection
-                removingClients.Remove(syncingClient.connectionId);
+                removingClients.Remove(tempClientInstanceId);
             }
             // Remove client instances by entries in removing collection
-            foreach (long connectionId in removingClients)
+            foreach (string clientInstanceId in removingClients)
             {
-                if (clientInstances.TryRemove(connectionId, out DissonanceClientInstance clientInstance))
+                if (clientInstances.TryRemove(clientInstanceId, out DissonanceClientInstance clientInstance))
                 {
                     // Destroy instance
                     Destroy(clientInstance.gameObject);
