@@ -18,7 +18,7 @@ namespace DissonanceServer
             if (join)
             {
                 join = false;
-                networkManager.Join(roomName, position, Quaternion.Euler(rotation));
+                networkManager.Join(roomName, position, Quaternion.Euler(rotation), string.Empty);
             }
 
             if (setPosition)
