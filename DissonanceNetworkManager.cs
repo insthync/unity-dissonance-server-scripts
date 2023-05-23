@@ -4,6 +4,7 @@ using LiteNetLibManager;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using UnityEngine;
 using LnlM = LiteNetLibManager.LiteNetLibManager;
@@ -112,15 +113,15 @@ namespace DissonanceServer
             clientInstances.Clear();
         }
 
-        public override void OnPeerDisconnected(long connectionId, DisconnectInfo disconnectInfo)
+        public override void OnPeerDisconnected(long connectionId, DisconnectReason reason, SocketError socketError)
         {
-            base.OnPeerDisconnected(connectionId, disconnectInfo);
+            base.OnPeerDisconnected(connectionId, reason, socketError);
             RemoveClient(connectionId);
         }
 
-        protected override void FixedUpdate()
+        protected override void Update()
         {
-            base.FixedUpdate();
+            base.Update();
             // Sync clients position
             foreach (string roomName in clientsByRoomName.Keys)
             {
