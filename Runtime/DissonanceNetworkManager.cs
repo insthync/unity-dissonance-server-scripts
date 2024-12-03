@@ -127,15 +127,14 @@ namespace DissonanceServer
             {
                 // Prepare sending data
                 HashSet<long> sendToConnections = clientsByRoomName[roomName];
-                ClientData[] filteredClients = new ClientData[sendToConnections.Count];
-                int index = 0;
+                List<ClientData> filteredClients = new List<ClientData>();
                 foreach (long connectionId in sendToConnections)
                 {
-                    filteredClients[index++] = joinedClients[connectionId];
+                    filteredClients.Add(joinedClients[connectionId]);
                 }
                 NetDataWriter writer = new NetDataWriter();
                 TransportHandler.WritePacket(writer, OPCODE_SYNC_CLIENTS);
-                writer.PutArray<ClientData>(filteredClients);
+                writer.PutList(filteredClients);
                 foreach (long connectionId in sendToConnections)
                 {
                     ServerSendMessage(connectionId, 0, DeliveryMethod.ReliableOrdered, writer);
@@ -198,11 +197,11 @@ namespace DissonanceServer
 
         private void OnSyncClientsAtClient(MessageHandlerData netMsg)
         {
-            ClientData[] clients = netMsg.Reader.GetArray<ClientData>();
+            List<ClientData> clients = netMsg.Reader.GetList<ClientData>();
             HashSet<long> removingClients = new HashSet<long>(clientInstances.Keys);
             ClientData syncingClient;
             // Add/Update client instances by synced client data
-            for (int i = 0; i < clients.Length; ++i)
+            for (int i = 0; i < clients.Count; ++i)
             {
                 syncingClient = clients[i];
                 if (!clientInstances.ContainsKey(syncingClient.connectionId))
